@@ -72,10 +72,10 @@ cat("AUC when K=5 = ", mean(aucs_k5),"\n")
 
 ```{r message=FALSE, warning=FALSE, r,warning=FALSE}
 # to convert to binary (class) predictions
-pred_binary <- ifelse(pred_prob > 0.5, 1, 0)
+pred_binary <- ifelse(pred_prob_filter > 0.5, 1, 0)
 
 
-confusionMatrix(factor(pred_binary), factor(topk_test$adopter), positive = "1")
+confusionMatrix(factor(pred_binary), factor(topk_test$adopter), positive = "1", mode = "prec_recall")
 
 ```
 # unlabelled data prediction

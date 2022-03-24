@@ -1,4 +1,4 @@
-# Logistic model for team project - cross validation + feature selection k=5
+# Logistic model for team project - cross validation + forward feature selection + oversampling
 
 # import necessary packages
 ```{r,warning=FALSE,message=FALSE message=FALSE, warning=FALSE, r,warning=FALSE}
@@ -40,49 +40,69 @@ auc_cv = c()
 ```
 
 
-# Train a logistic model - filter approach feature selection - k=5 + oversample
-```{r, warning=FALSE, message=FALSE}
+# logistic regression - forward feature selection
+```{r,warning=FALSE,message=FALSE}
+best_auc <- 0.5
+selected_features <- c()
 
+while(TRUE){
 
-aucs_k5 = c()
-for(test_fold in cv){
-  train = data_label[-test_fold, ]
-  test = data_label[test_fold, ]
-  ig <- information_gain(adopter ~ . , data = train)  
-  
-  #select top 5 features
-  topk <- cut_attrs(ig, k = 5)
-  
-  topk_train <- train %>% select(topk,adopter)
-  topk_test <-  test %>% select(topk,adopter)
-  
-  topk_train_balanced <- ovun.sample(adopter ~ . , data = topk_train, 
+  feature_to_add <- -1
+
+  for(i in setdiff(1:(dim(data_label)[2]-1), selected_features)){
+
+      aucs <- c() # empty vector to store AUC from each fold
+
+      for(test_fold in cv){
+
+      train <- data_label[-test_fold, ] %>% select(selected_features, i, adopter)
+      test <- data_label[test_fold, ] %>% select(selected_features, i, adopter)
+
+      train_balanced <- ovun.sample(adopter ~ . , data = train, 
                                    method = "over", 
-                                   N = 2*table(topk_train$adopter)[1])$data
-  
-  logit_model_filter <- glm(adopter ~., data = topk_train_balanced, family = "binomial")
-  
-  pred_prob_filter <- predict(logit_model_filter, topk_test, type = "response")
-  
-  aucs_k5 = c(aucs_k5, auc(test$adopter, pred_prob_filter))
-}
-cat("AUC when K=5 = ", mean(aucs_k5),"\n")
+                                   N = 2*table(train$adopter)[1])$data
+      
+      logit_model_wf <- glm(adopter ~ . , data = train_balanced, family = "binomial")
 
+      pred_prob_wf <- predict(logit_model_wf, test, type = "response")
+
+      aucs <- c(aucs, auc(test$adopter, pred_prob_wf))
+      }
+
+      auc_wf <- mean(aucs) # mean AUC from the current set of features
+
+      if(auc_wf > best_auc){
+        best_auc <- auc_wf
+        feature_to_add <- i
+      }
+  }
+
+  if (feature_to_add != -1){
+    selected_features <- c(selected_features, feature_to_add)
+    print(selected_features) 
+    print(best_auc) 
+  }
+  else break
+}
 ```
+
+
 
 ```{r message=FALSE, warning=FALSE, r,warning=FALSE}
 # to convert to binary (class) predictions
-pred_binary <- ifelse(pred_prob > 0.5, 1, 0)
+pred_binary <- ifelse(pred_prob_wf > 0.5, 1, 0)
 
 
-confusionMatrix(factor(pred_binary), factor(topk_test$adopter), positive = "1")
+confusionMatrix(factor(pred_binary), factor(test$adopter), positive = "1", mode = "prec_recall")
 
 ```
+
+
 # unlabelled data prediction
 ```{r message=FALSE, warning=FALSE, r,warning=FALSE}
 # import unlabeled data and make predictions
 data_unlabel = read.csv("UnlabelData.csv")
-pred = predict(logit_model, data_unlabel, type = "class")
+pred = predict(logit_model_wf, data_unlabel, type = "class")
 
 # prepare submission
 submission = data.frame(user_id = data_unlabel$user_id,
