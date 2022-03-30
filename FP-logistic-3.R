@@ -82,13 +82,14 @@ confusionMatrix(factor(pred_binary), factor(topk_test$adopter), positive = "1", 
 ```{r message=FALSE, warning=FALSE, r,warning=FALSE}
 # import unlabeled data and make predictions
 data_unlabel = read.csv("UnlabelData.csv")
-pred = predict(logit_model, data_unlabel, type = "class")
+pred = predict(logit_model_filter, data_unlabel, type = "response")
+pred_binary <- ifelse(pred > 0.5, 1, 0)
 
 # prepare submission
 submission = data.frame(user_id = data_unlabel$user_id,
-                        prediction = pred)
+                        prediction = pred_binary)
 
-write.csv(submission, "Team-30-Submission.csv", row.names = FALSE)
+write.csv(submission, "Team-20-Submission_2.csv", row.names = FALSE)
 ```
 
 
